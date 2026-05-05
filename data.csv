@@ -1,3 +1,3 @@
-Nome,Preco,Estoque,Sala,Categoria,Imagem,Ativo,
+Nome,Preco,Estoque,Sala,Categoria,Imagem,Ativo,Desconto
 __CONFIG__,0,,,Desconto global do site (%),,nao,
 Eudora perfume bloom,100,,,,https://images.tcdn.com.br/img/img_prod/1241437/eudora_niina_secrets_bloom_456_1_36dbb54a8e47c32154be363dd820b4e6.jpg,sim,
