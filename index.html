@@ -831,6 +831,12 @@ function csvRowToProduct(row, idx) {
     sheet: (row['Sala'] || '').trim(),
     category: (row['Categoria'] || '').trim(),
     img: (row['Imagem'] || '').trim(),
+    discount: (() => {
+      const raw = (row['Desconto'] || '').replace(',', '.').replace(/[^\d.]/g, '');
+      if (!raw) return null;
+      const v = parseFloat(raw);
+      return (!isNaN(v) && v >= 0 && v <= 100) ? v / 100 : null;
+    })(),
   };
 }
 
@@ -995,6 +1001,21 @@ function discountedPrice(price) {
 function discountPct() {
   return Math.round(globalDiscount * 100);
 }
+function effectiveDiscount(p) {
+  return (p.discount !== null && p.discount !== undefined) ? p.discount : globalDiscount;
+}
+function discountedProductPrice(p) {
+  return p.price * (1 - effectiveDiscount(p));
+}
+function productDiscountPct(p) {
+  return Math.round(effectiveDiscount(p) * 100);
+}
+function cartDiscountedTotal() {
+  return Object.entries(cart).reduce((s, [id, v]) => {
+    const p = cartProduct(parseInt(id, 10));
+    return s + (p ? discountedProductPrice(p) * v.qty : 0);
+  }, 0);
+}
 
 function formatBRL(n) {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1038,7 +1059,8 @@ function renderGrid() {
   }
 
   grid.innerHTML = page.map(p => {
-    const disc = discountedPrice(p.price);
+    const disc = discountedProductPrice(p);
+    const pDiscPct = productDiscountPct(p);
     const inCart = cart[p.id] ? cart[p.id].qty : 0;
     const availQty = p.stock - inCart;
     const isOut = p.stock <= 0;
@@ -1057,7 +1079,7 @@ function renderGrid() {
       <div class="card-body">
         <div class="card-name" title="${escHTML(p.name)}">${escHTML(p.name)}</div>
         <div class="card-prices">
-          <div class="price-original">R$ ${formatBRL(p.price)} <span class="discount-tag">−${discountPct()}%</span></div>
+          <div class="price-original">R$ ${formatBRL(p.price)} <span class="discount-tag">−${pDiscPct}%</span></div>
           <div class="price-discounted">R$ ${formatBRL(disc)}</div>
         </div>
         <div class="card-category">${escHTML(p.category)}${p.sheet ? ' · ' + escHTML(p.sheet) : ''}</div>
@@ -1226,7 +1248,7 @@ function renderCartPanel() {
     const p = cartProduct(id);
     if (!p) return '';
     const qty = cart[id].qty;
-    const disc = discountedPrice(p.price);
+    const disc = discountedProductPrice(p);
     return `<div class="cart-item">
       ${p.img
         ? `<img class="cart-item-img" src="${escHTML(p.img)}" alt="${escHTML(p.name)}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 56 56%22><rect width=%2256%22 height=%2256%22 fill=%22%23f3f4f6%22/><text x=%2228%22 y=%2234%22 text-anchor=%22middle%22 font-size=%2224%22>${encodeURIComponent(CAT_EMOJI[p.category]||'📦')}</text></svg>'">`
@@ -1246,11 +1268,11 @@ function renderCartPanel() {
   }).join('');
 
   const subtotal = cartSubtotal();
-  const discTotal = subtotal * (1 - globalDiscount);
+  const discTotal = cartDiscountedTotal();
   const saved = subtotal - discTotal;
   totalsEl.innerHTML = `
     <div class="cart-total-row"><span>Subtotal (sem desconto)</span><span>R$ ${formatBRL(subtotal)}</span></div>
-    <div class="cart-total-row" style="color:var(--success)"><span>Desconto (${discountPct()}%)</span><span>− R$ ${formatBRL(saved)}</span></div>
+    <div class="cart-total-row" style="color:var(--success)"><span>Economia total</span><span>− R$ ${formatBRL(saved)}</span></div>
     <div class="cart-total-row main"><span>Total com desconto</span><span>R$ ${formatBRL(discTotal)}</span></div>`;
 }
 
@@ -1288,17 +1310,18 @@ document.getElementById('btnWhatsApp').addEventListener('click', () => {
     const p = cartProduct(id);
     if (!p) return '';
     const qty = cart[id].qty;
-    const disc = discountedPrice(p.price);
-    return `• ${p.name}\n  Qtd: ${qty}x | Subtotal: R$ ${formatBRL(disc * qty)}`;
+    const disc = discountedProductPrice(p);
+    const pct = productDiscountPct(p);
+    return `• ${p.name}\n  Qtd: ${qty}x | Desconto: ${pct}% | Subtotal: R$ ${formatBRL(disc * qty)}`;
   }).filter(Boolean);
 
-  const total = cartSubtotal() * (1 - globalDiscount);
+  const total = cartDiscountedTotal();
   const msg = [
     '🛒 *Pedido — Loja*',
     '',
     ...lines,
     '',
-    `*Total com ${discountPct()}% de desconto: R$ ${formatBRL(total)}*`,
+    `*Total com desconto: R$ ${formatBRL(total)}*`,
     '',
     `Link: ${STORE_URL}`,
   ].join('\n');

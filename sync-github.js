@@ -126,9 +126,11 @@ function gerarCSV() {
   const data  = sheet.getDataRange().getValues();
 
   const lines = data.map((row, i) => {
-    while (row.length < 7) row.push('');
+    while (row.length < 9) row.push('');
 
-    return row.slice(0, 7).map((cell, j) => {
+    // Exporta colunas A-G (0-6) + I (8 = Desconto), pulando H (Comprado por)
+    const cells = [...row.slice(0, 7), row[8]];
+    return cells.map((cell, j) => {
       let val;
 
       if (j === COL_PRECO - 1 || j === COL_ESTOQUE - 1) {
@@ -268,10 +270,10 @@ function configurarGatilhos() {
   const sheet = ss.getSheetByName(SHEET_NAME) || ss.getActiveSheet();
   const primeiraLinha = sheet.getRange(1, 1).getValue();
   if (!primeiraLinha || String(primeiraLinha).trim() === '') {
-    sheet.getRange(1, 1, 1, 8).setValues([[
-      'Nome', 'Preco', 'Estoque', 'Sala', 'Categoria', 'Imagem', 'Ativo', 'Comprado por'
+    sheet.getRange(1, 1, 1, 9).setValues([[
+      'Nome', 'Preco', 'Estoque', 'Sala', 'Categoria', 'Imagem', 'Ativo', 'Comprado por', 'Desconto'
     ]]);
-    sheet.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#e11d48').setFontColor('#ffffff');
+    sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#e11d48').setFontColor('#ffffff');
   }
 
   // 4. Garante linha __CONFIG__
