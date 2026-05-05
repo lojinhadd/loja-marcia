@@ -728,8 +728,8 @@ const GITHUB_CSV_URL  = 'https://raw.githubusercontent.com/lojinhadd/loja-marcia
 const WA_NUMBER = '5511941406454';
 const STORE_URL = 'https://lojinhadd.github.io/loja-marcia/';
 const PER_PAGE = 28;
-let globalDiscount = 0.20;          // controlado pela planilha via linha __CONFIG__
-const DISCOUNT_FALLBACK = 0.20;     // fallback seguro se planilha não tiver config
+let globalDiscount = 0;             // sem desconto global — desconto por produto via coluna Desconto
+const DISCOUNT_FALLBACK = 0;        // sem fallback global
 const NOVIDADES_COUNT = 50;         // quantos itens na aba Novidades
 const CAT_NOVIDADES = '✨ Novidades';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 min
@@ -1079,8 +1079,11 @@ function renderGrid() {
       <div class="card-body">
         <div class="card-name" title="${escHTML(p.name)}">${escHTML(p.name)}</div>
         <div class="card-prices">
-          <div class="price-original">R$ ${formatBRL(p.price)} <span class="discount-tag">−${pDiscPct}%</span></div>
-          <div class="price-discounted">R$ ${formatBRL(disc)}</div>
+          ${pDiscPct > 0
+            ? `<div class="price-original">R$ ${formatBRL(p.price)} <span class="discount-tag">−${pDiscPct}%</span></div>
+          <div class="price-discounted">R$ ${formatBRL(disc)}</div>`
+            : `<div class="price-discounted">R$ ${formatBRL(p.price)}</div>`
+          }
         </div>
         <div class="card-category">${escHTML(p.category)}${p.sheet ? ' · ' + escHTML(p.sheet) : ''}</div>
         <div class="card-footer">
@@ -1271,9 +1274,9 @@ function renderCartPanel() {
   const discTotal = cartDiscountedTotal();
   const saved = subtotal - discTotal;
   totalsEl.innerHTML = `
-    <div class="cart-total-row"><span>Subtotal (sem desconto)</span><span>R$ ${formatBRL(subtotal)}</span></div>
-    <div class="cart-total-row" style="color:var(--success)"><span>Economia total</span><span>− R$ ${formatBRL(saved)}</span></div>
-    <div class="cart-total-row main"><span>Total com desconto</span><span>R$ ${formatBRL(discTotal)}</span></div>`;
+    ${saved > 0 ? `<div class="cart-total-row"><span>Subtotal (sem desconto)</span><span>R$ ${formatBRL(subtotal)}</span></div>
+    <div class="cart-total-row" style="color:var(--success)"><span>Economia total</span><span>− R$ ${formatBRL(saved)}</span></div>` : ''}
+    <div class="cart-total-row main"><span>Total</span><span>R$ ${formatBRL(discTotal)}</span></div>`;
 }
 
 // ============================================================
@@ -1312,7 +1315,8 @@ document.getElementById('btnWhatsApp').addEventListener('click', () => {
     const qty = cart[id].qty;
     const disc = discountedProductPrice(p);
     const pct = productDiscountPct(p);
-    return `• ${p.name}\n  Qtd: ${qty}x | Desconto: ${pct}% | Subtotal: R$ ${formatBRL(disc * qty)}`;
+    const discInfo = pct > 0 ? ` | Desconto: ${pct}%` : '';
+    return `• ${p.name}\n  Qtd: ${qty}x${discInfo} | Subtotal: R$ ${formatBRL(disc * qty)}`;
   }).filter(Boolean);
 
   const total = cartDiscountedTotal();
